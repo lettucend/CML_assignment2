@@ -1,0 +1,754 @@
+<html>
+<head>
+<title>type.ipynb</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #808080;}
+.s1 { color: #cc7832;}
+.s2 { color: #a9b7c6;}
+.s3 { color: #6a8759;}
+.s4 { color: #6897bb;}
+.s5 { color: #629755; font-style: italic;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+type.ipynb</font>
+</center></td></tr></table>
+<pre><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">pandas </span><span class="s1">as </span><span class="s2">pd</span>
+<span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+<span class="s1">from </span><span class="s2">PIL </span><span class="s1">import </span><span class="s2">Image</span><span class="s1">, </span><span class="s2">UnidentifiedImageError</span>
+<span class="s1">from </span><span class="s2">PIL </span><span class="s1">import </span><span class="s2">Image</span><span class="s1">, </span><span class="s2">ImageOps</span>
+<span class="s1">from </span><span class="s2">tensorflow.keras </span><span class="s1">import </span><span class="s2">layers</span><span class="s1">, </span><span class="s2">models</span>
+<span class="s1">import </span><span class="s2">numpy </span><span class="s1">as </span><span class="s2">np</span>
+<span class="s1">from </span><span class="s2">sklearn.model_selection </span><span class="s1">import </span><span class="s2">train_test_split</span>
+<span class="s1">from </span><span class="s2">sklearn.tree </span><span class="s1">import </span><span class="s2">DecisionTreeClassifier</span>
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">accuracy_score</span>
+<span class="s1">from </span><span class="s2">sklearn.ensemble </span><span class="s1">import </span><span class="s2">RandomForestClassifier</span>
+<span class="s1">from </span><span class="s2">sklearn.svm </span><span class="s1">import </span><span class="s2">SVC</span>
+<span class="s1">from </span><span class="s2">sklearn.preprocessing </span><span class="s1">import </span><span class="s2">StandardScaler</span>
+<span class="s1">from </span><span class="s2">sklearn.pipeline </span><span class="s1">import </span><span class="s2">make_pipeline</span>
+<span class="s1">import </span><span class="s2">tensorflow </span><span class="s1">as </span><span class="s2">tf</span>
+<span class="s1">import </span><span class="s2">os</span>
+<span class="s2">os.environ[</span><span class="s3">'TF_CPP_MIN_LOG_LEVEL'</span><span class="s2">] = </span><span class="s3">'2'</span>
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">os</span>
+<span class="s1">from </span><span class="s2">PIL </span><span class="s1">import </span><span class="s2">Image</span><span class="s1">, </span><span class="s2">UnidentifiedImageError</span>
+
+<span class="s0"># Root directory of the images</span>
+<span class="s2">root_dir = </span><span class="s3">'trafficsigns_dataset'  </span><span class="s0"># Replace with the actual path</span>
+
+<span class="s0"># Nested dictionary to store images categorized by two levels of labels</span>
+<span class="s2">images_by_label = {}</span>
+
+<span class="s0"># Function to traverse the dataset and load images and their labels</span>
+<span class="s1">def </span><span class="s2">load_images_and_labels(root_dir):</span>
+    <span class="s0"># Iterate through each subdirectory in the root directory (first level)</span>
+    <span class="s1">for </span><span class="s2">sub_dir </span><span class="s1">in </span><span class="s2">os.listdir(root_dir):</span>
+        <span class="s2">sub_dir_path = os.path.join(root_dir</span><span class="s1">, </span><span class="s2">sub_dir)</span>
+        
+        <span class="s0"># Check if the subdirectory is indeed a directory</span>
+        <span class="s1">if </span><span class="s2">os.path.isdir(sub_dir_path):</span>
+            <span class="s0"># Initialize the first level label key</span>
+            <span class="s2">images_by_label[sub_dir] = {}</span>
+            
+            <span class="s0"># Iterate again through the folders within the subdirectory (second level, specific labels)</span>
+            <span class="s1">for </span><span class="s2">label_dir </span><span class="s1">in </span><span class="s2">os.listdir(sub_dir_path):</span>
+                <span class="s2">label_dir_path = os.path.join(sub_dir_path</span><span class="s1">, </span><span class="s2">label_dir)</span>
+                
+                <span class="s0"># Check if the second level is also a directory</span>
+                <span class="s1">if </span><span class="s2">os.path.isdir(label_dir_path):</span>
+                    <span class="s0"># Initialize the second level label key</span>
+                    <span class="s2">images_by_label[sub_dir][label_dir] = []</span>
+                    
+                    <span class="s0"># Iterate through all image files in the second level directory</span>
+                    <span class="s1">for </span><span class="s2">image_filename </span><span class="s1">in </span><span class="s2">os.listdir(label_dir_path):</span>
+                        <span class="s0"># Ignore .DS_Store files</span>
+                        <span class="s1">if </span><span class="s2">image_filename == </span><span class="s3">'.DS_Store'</span><span class="s2">:</span>
+                            <span class="s1">continue</span>
+                        <span class="s2">image_path = os.path.join(label_dir_path</span><span class="s1">, </span><span class="s2">image_filename)</span>
+                        <span class="s1">try</span><span class="s2">:</span>
+                            <span class="s2">images_by_label[sub_dir][label_dir].append(image_path)</span>
+                        <span class="s1">except </span><span class="s2">UnidentifiedImageError:</span>
+                            <span class="s0"># Print error message if the image cannot be identified</span>
+                            <span class="s2">print(</span><span class="s3">f&quot;Cannot identify image file '</span><span class="s1">{</span><span class="s2">image_path</span><span class="s1">}</span><span class="s3">'&quot;</span><span class="s2">)</span>
+
+<span class="s0"># Load images and labels</span>
+<span class="s2">load_images_and_labels(root_dir)</span>
+
+<span class="s0"># Print the number of images for each category</span>
+<span class="s1">for </span><span class="s2">sub_dir</span><span class="s1">, </span><span class="s2">labels </span><span class="s1">in </span><span class="s2">images_by_label.items():</span>
+    <span class="s1">for </span><span class="s2">label</span><span class="s1">, </span><span class="s2">images </span><span class="s1">in </span><span class="s2">labels.items():</span>
+        <span class="s2">print(</span><span class="s3">f&quot;</span><span class="s1">{</span><span class="s2">sub_dir</span><span class="s1">}</span><span class="s3">/</span><span class="s1">{</span><span class="s2">label</span><span class="s1">}</span><span class="s3">: </span><span class="s1">{</span><span class="s2">len(images)</span><span class="s1">} </span><span class="s3">images&quot;</span><span class="s2">)</span>
+        
+<span class="s2">label_names = []</span>
+<span class="s1">for </span><span class="s2">sub_dir </span><span class="s1">in </span><span class="s2">images_by_label:</span>
+    <span class="s1">for </span><span class="s2">label </span><span class="s1">in </span><span class="s2">images_by_label[sub_dir]:</span>
+        <span class="s1">if </span><span class="s2">label </span><span class="s1">not in </span><span class="s2">label_names:</span>
+            <span class="s2">label_names.append(label)</span>
+
+<span class="s0"># Sort label names to maintain consistency</span>
+<span class="s2">label_names.sort()</span>
+
+<span class="s0"># Now label_names contains all unique labels, sorted alphabetically</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">28no Unusual 
+</span><span class="s0">#%% 
+</span><span class="s1">def </span><span class="s2">get_image_sizes(root_dir):</span>
+    <span class="s2">sizes = []</span>
+    <span class="s0"># Traverse through the directory structure in root_dir</span>
+    <span class="s1">for </span><span class="s2">subdir</span><span class="s1">, </span><span class="s2">dirs</span><span class="s1">, </span><span class="s2">files </span><span class="s1">in </span><span class="s2">os.walk(root_dir):</span>
+        <span class="s1">for </span><span class="s2">file </span><span class="s1">in </span><span class="s2">files:</span>
+            <span class="s0"># Check if the file is a PNG or JPG</span>
+            <span class="s1">if </span><span class="s2">file.lower().endswith(</span><span class="s3">'.png'</span><span class="s2">) </span><span class="s1">or </span><span class="s2">file.lower().endswith(</span><span class="s3">'.jpg'</span><span class="s2">):</span>
+                <span class="s1">try</span><span class="s2">:</span>
+                    <span class="s0"># Open the image file and append its size (width, height)</span>
+                    <span class="s1">with </span><span class="s2">Image.open(os.path.join(subdir</span><span class="s1">, </span><span class="s2">file)) </span><span class="s1">as </span><span class="s2">img:</span>
+                        <span class="s2">sizes.append(img.size)</span>
+                <span class="s1">except </span><span class="s2">(IOError</span><span class="s1">, </span><span class="s2">UnidentifiedImageError):</span>
+                    <span class="s0"># Continue to the next file if an error occurs</span>
+                    <span class="s1">continue</span>
+    <span class="s1">return </span><span class="s2">sizes</span>
+
+<span class="s0"># Call the function to get the sizes of all images in the directory</span>
+<span class="s2">image_sizes = get_image_sizes(root_dir)</span>
+
+<span class="s0"># Convert list of sizes to a NumPy array for statistical calculation</span>
+<span class="s2">sizes_np = np.array(image_sizes)</span>
+<span class="s2">min_size = sizes_np.min(axis=</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s2">max_size = sizes_np.max(axis=</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s2">mean_size = sizes_np.mean(axis=</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s2">std_dev_size = sizes_np.std(axis=</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s2">median_size = np.median(sizes_np</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">0</span><span class="s2">)</span>
+
+<span class="s0"># Output the minimum, maximum, mean, standard deviation, and median sizes of the images</span>
+<span class="s2">min_size</span><span class="s1">, </span><span class="s2">max_size</span><span class="s1">, </span><span class="s2">mean_size</span><span class="s1">, </span><span class="s2">std_dev_size</span><span class="s1">, </span><span class="s2">median_size</span>
+
+<span class="s0">#%% 
+</span><span class="s2">train_data = {}</span>
+<span class="s2">test_data = {}</span>
+<span class="s2">validation_data = {}</span>
+
+<span class="s1">for </span><span class="s2">first_level</span><span class="s1">, </span><span class="s2">second_level_dict </span><span class="s1">in </span><span class="s2">images_by_label.items():</span>
+    <span class="s2">train_data[first_level] = {}</span>
+    <span class="s2">validation_data[first_level] = {}</span>
+    <span class="s2">test_data[first_level] = {}</span>
+    
+    <span class="s1">for </span><span class="s2">label</span><span class="s1">, </span><span class="s2">image_paths </span><span class="s1">in </span><span class="s2">second_level_dict.items():</span>
+        <span class="s2">temp_images</span><span class="s1">, </span><span class="s2">test_images = train_test_split(image_paths</span><span class="s1">, </span><span class="s2">test_size=</span><span class="s4">0.2</span><span class="s1">, </span><span class="s2">random_state=</span><span class="s4">42</span><span class="s2">)</span>
+        <span class="s2">train_images</span><span class="s1">, </span><span class="s2">val_images = train_test_split(temp_images</span><span class="s1">, </span><span class="s2">test_size=</span><span class="s4">0.2</span><span class="s1">, </span><span class="s2">random_state=</span><span class="s4">42</span><span class="s2">)</span>
+        
+        <span class="s0"># Save split data</span>
+        <span class="s2">train_data[first_level][label] = train_images</span>
+        <span class="s2">test_data[first_level][label] = test_images</span>
+        <span class="s2">validation_data[first_level][label] = val_images</span>
+
+<span class="s0">#%% 
+</span><span class="s1">def </span><span class="s2">create_dataframe_for_16_class(data_dict):</span>
+    <span class="s2">rows = []</span>
+    <span class="s1">for </span><span class="s2">first_level</span><span class="s1">, </span><span class="s2">second_level_dict </span><span class="s1">in </span><span class="s2">data_dict.items():</span>
+        <span class="s1">for </span><span class="s2">label</span><span class="s1">, </span><span class="s2">image_paths </span><span class="s1">in </span><span class="s2">second_level_dict.items():</span>
+            <span class="s1">for </span><span class="s2">path </span><span class="s1">in </span><span class="s2">image_paths:</span>
+                <span class="s2">rows.append({</span><span class="s3">'ImagePath'</span><span class="s2">: path</span><span class="s1">, </span><span class="s3">'Label'</span><span class="s2">: label})</span>
+    <span class="s1">return </span><span class="s2">pd.DataFrame(rows)</span>
+
+<span class="s1">def </span><span class="s2">create_dataframe_for_5_class(data_dict):</span>
+    <span class="s2">rows = []</span>
+    <span class="s1">for </span><span class="s2">first_level</span><span class="s1">, </span><span class="s2">second_level_dict </span><span class="s1">in </span><span class="s2">data_dict.items():</span>
+        <span class="s1">for </span><span class="s2">label</span><span class="s1">, </span><span class="s2">image_paths </span><span class="s1">in </span><span class="s2">second_level_dict.items():</span>
+            <span class="s1">for </span><span class="s2">path </span><span class="s1">in </span><span class="s2">image_paths:</span>
+                <span class="s2">rows.append({</span><span class="s3">'ImagePath'</span><span class="s2">: path</span><span class="s1">, </span><span class="s3">'Label'</span><span class="s2">: first_level})</span>
+    <span class="s1">return </span><span class="s2">pd.DataFrame(rows)</span>
+
+<span class="s2">train_df = create_dataframe_for_16_class(train_data)</span>
+<span class="s2">test_df = create_dataframe_for_16_class(test_data)</span>
+<span class="s2">validation_df = create_dataframe_for_16_class(validation_data)</span>
+<span class="s0">#%% 
+</span><span class="s2">batch_size = </span><span class="s4">64</span>
+<span class="s0">#%% 
+# Initialize image data generators with rescaling</span>
+<span class="s2">train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s2">)</span>
+<span class="s2">val_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s2">)</span>
+<span class="s2">test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s2">)</span>
+
+<span class="s0"># Create a training data generator from a dataframe</span>
+<span class="s2">train_generator = train_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=train_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'ImagePath'</span><span class="s1">,          </span><span class="s0"># Column in dataframe that contains the image paths</span>
+    <span class="s2">y_col=</span><span class="s3">'Label'</span><span class="s1">,              </span><span class="s0"># Column in dataframe that contains the labels</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,     </span><span class="s0"># Use grayscale images</span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,       </span><span class="s0"># Resize images to 28x28 pixels</span>
+    <span class="s2">batch_size=batch_size</span><span class="s1">,      </span><span class="s0"># Number of images to process in a batch</span>
+    <span class="s2">class_mode=</span><span class="s3">'categorical'</span><span class="s1">,   </span><span class="s0"># If it's a multi-class problem</span>
+    <span class="s2">shuffle=</span><span class="s1">True                </span><span class="s0"># Shuffle the order of the images</span>
+<span class="s2">)</span>
+
+<span class="s0"># Create a validation data generator from a dataframe</span>
+<span class="s2">val_generator = val_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=validation_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'ImagePath'</span><span class="s1">,          </span><span class="s0"># Column in dataframe that contains the image paths</span>
+    <span class="s2">y_col=</span><span class="s3">'Label'</span><span class="s1">,              </span><span class="s0"># Column in dataframe that contains the labels</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,     </span><span class="s0"># Use grayscale images</span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,       </span><span class="s0"># Resize images to 28x28 pixels</span>
+    <span class="s2">batch_size=batch_size</span><span class="s1">,      </span><span class="s0"># Number of images to process in a batch</span>
+    <span class="s2">class_mode=</span><span class="s3">'categorical'</span><span class="s1">,   </span><span class="s0"># If it's a multi-class problem</span>
+    <span class="s2">shuffle=</span><span class="s1">False               </span><span class="s0"># Do not shuffle the images</span>
+<span class="s2">)</span>
+
+<span class="s0"># Create a test data generator from a dataframe</span>
+<span class="s2">test_generator = test_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=test_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'ImagePath'</span><span class="s1">,          </span><span class="s0"># Column in dataframe that contains the image paths</span>
+    <span class="s2">y_col=</span><span class="s3">'Label'</span><span class="s1">,              </span><span class="s0"># Column in dataframe that contains the labels</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,     </span><span class="s0"># Use grayscale images</span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,       </span><span class="s0"># Resize images to 28x28 pixels</span>
+    <span class="s2">batch_size=batch_size</span><span class="s1">,      </span><span class="s0"># Number of images to process in a batch</span>
+    <span class="s2">class_mode=</span><span class="s3">'categorical'</span><span class="s1">,   </span><span class="s0"># If it's a multi-class problem</span>
+    <span class="s2">shuffle=</span><span class="s1">False               </span><span class="s0"># Do not shuffle the images</span>
+<span class="s2">)</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## Transfer data to suit scikit-learn 
+</span><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">numpy </span><span class="s1">as </span><span class="s2">np</span>
+
+<span class="s1">def </span><span class="s2">get_data_from_generator(generator):</span>
+    <span class="s2">batches = []</span>
+    <span class="s2">labels = []</span>
+    <span class="s0"># Iterate over the generator to collect data and labels</span>
+    <span class="s1">for </span><span class="s2">batch</span><span class="s1">, </span><span class="s2">label </span><span class="s1">in </span><span class="s2">generator:</span>
+        <span class="s2">batches.append(batch)</span>
+        <span class="s2">labels.append(label)</span>
+        <span class="s1">if </span><span class="s2">len(batches) &gt;= len(generator):</span>
+            <span class="s1">break  </span><span class="s0"># Ensure not to iterate infinitely</span>
+    <span class="s1">return </span><span class="s2">np.vstack(batches)</span><span class="s1">, </span><span class="s2">np.vstack(labels)</span>
+
+<span class="s0"># Get training, validation, and test data and labels</span>
+<span class="s2">X_train</span><span class="s1">, </span><span class="s2">y_train = get_data_from_generator(train_generator)</span>
+<span class="s2">X_val</span><span class="s1">, </span><span class="s2">y_val = get_data_from_generator(val_generator)</span>
+<span class="s2">X_test</span><span class="s1">, </span><span class="s2">y_test = get_data_from_generator(test_generator)</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## Decision Tree 
+</span><span class="s0">#%% 
+# Assume the original shape of X_train and X_val is [number of samples, 28, 28, 1] - as extracted from an image generator</span>
+
+<span class="s0"># Reshape X_train and X_val into two-dimensional arrays, one row per image</span>
+<span class="s2">X_train = X_train.reshape(X_train.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)  </span><span class="s0"># -1 calculates the necessary size based on the remaining dimensions</span>
+<span class="s2">X_val = X_val.reshape(X_val.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s0"># If using get_data_from_generator function to extract data, make sure to adjust the function or data before reshaping</span>
+<span class="s0"># For example, ensure data is correctly extracted and transformed from the generator</span>
+<span class="s2">X_train</span><span class="s1">, </span><span class="s2">y_train = get_data_from_generator(train_generator)</span>
+<span class="s2">X_train = X_train.reshape(X_train.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s2">X_val</span><span class="s1">, </span><span class="s2">y_val = get_data_from_generator(val_generator)</span>
+<span class="s2">X_val = X_val.reshape(X_val.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s0"># Train the decision tree model</span>
+<span class="s2">tree_model = DecisionTreeClassifier(max_depth=</span><span class="s4">10</span><span class="s2">)</span>
+<span class="s2">tree_model.fit(X_train</span><span class="s1">, </span><span class="s2">y_train)</span>
+
+<span class="s0"># Evaluate the model on the validation set</span>
+<span class="s2">y_pred_val = tree_model.predict(X_val)</span>
+<span class="s2">print(</span><span class="s3">&quot;Validation Accuracy:&quot;</span><span class="s1">, </span><span class="s2">accuracy_score(y_val</span><span class="s1">, </span><span class="s2">y_pred_val))</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## Random Forest 
+</span><span class="s0">#%% 
+</span><span class="s1">from </span><span class="s2">sklearn.ensemble </span><span class="s1">import </span><span class="s2">RandomForestClassifier</span>
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">accuracy_score</span>
+
+<span class="s0"># Initialize the RandomForest model</span>
+<span class="s2">rf_model = RandomForestClassifier(n_estimators=</span><span class="s4">100</span><span class="s1">, </span><span class="s2">max_depth=</span><span class="s4">100</span><span class="s1">, </span><span class="s2">random_state=</span><span class="s4">42</span><span class="s2">)</span>
+
+<span class="s0"># Train the model</span>
+<span class="s2">rf_model.fit(X_train</span><span class="s1">, </span><span class="s2">y_train)</span>
+
+<span class="s0"># Evaluate the model using the validation set</span>
+<span class="s2">y_pred_val = rf_model.predict(X_val)</span>
+<span class="s2">print(</span><span class="s3">&quot;Validation Accuracy:&quot;</span><span class="s1">, </span><span class="s2">accuracy_score(y_val</span><span class="s1">, </span><span class="s2">y_pred_val))</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## SVM 
+</span><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">numpy </span><span class="s1">as </span><span class="s2">np</span>
+<span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+<span class="s1">from </span><span class="s2">sklearn.svm </span><span class="s1">import </span><span class="s2">SVC</span>
+<span class="s1">from </span><span class="s2">sklearn.preprocessing </span><span class="s1">import </span><span class="s2">StandardScaler</span>
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">accuracy_score</span>
+
+<span class="s0"># Assuming y_train and y_val are one-hot encoded, with shape (number of samples, number of categories)</span>
+<span class="s2">y_train = np.argmax(y_train</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+<span class="s2">y_val = np.argmax(y_val</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s0"># Initialize and apply normalization</span>
+<span class="s2">scaler = StandardScaler()</span>
+<span class="s2">X_train_scaled = scaler.fit_transform(X_train)</span>
+<span class="s2">X_val_scaled = scaler.transform(X_val)</span>
+
+<span class="s0"># Initialize the SVM model</span>
+<span class="s2">svm_model = SVC(kernel=</span><span class="s3">'rbf'</span><span class="s1">, </span><span class="s2">C=</span><span class="s4">1.0</span><span class="s1">, </span><span class="s2">gamma=</span><span class="s3">'auto'</span><span class="s1">, </span><span class="s2">max_iter=</span><span class="s4">1000</span><span class="s2">)</span>
+
+<span class="s0"># Train the SVM model</span>
+<span class="s2">svm_model.fit(X_train_scaled</span><span class="s1">, </span><span class="s2">y_train)</span>
+
+<span class="s0"># Evaluate the SVM model on the validation set</span>
+<span class="s2">y_pred_val = svm_model.predict(X_val_scaled)</span>
+<span class="s2">print(</span><span class="s3">&quot;Validation Accuracy:&quot;</span><span class="s1">, </span><span class="s2">accuracy_score(y_val</span><span class="s1">, </span><span class="s2">y_pred_val))</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## MLP Baseline Model for Multi-class Task 
+ 
+</span><span class="s0">#%% 
+</span><span class="s2">num_classes = </span><span class="s4">16</span>
+<span class="s2">input_shape = (</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span>
+<span class="s2">baseline_categorical = tf.keras.models.Sequential([</span>
+    <span class="s2">tf.keras.Input(shape=input_shape)</span><span class="s1">,</span>
+    <span class="s2">tf.keras.layers.Flatten()</span><span class="s1">,</span>
+    <span class="s2">tf.keras.layers.Dense(</span><span class="s4">512</span><span class="s1">, </span><span class="s2">activation=</span><span class="s3">'relu'</span><span class="s2">)</span><span class="s1">,</span>
+    <span class="s2">tf.keras.layers.Dense(num_classes</span><span class="s1">, </span><span class="s2">activation=</span><span class="s3">'softmax'</span><span class="s2">)</span>
+<span class="s2">])</span>
+<span class="s0">#%% 
+</span><span class="s2">baseline_categorical.compile(loss=</span><span class="s3">'categorical_crossentropy'</span><span class="s1">,</span>
+                        <span class="s2">optimizer=tf.keras.optimizers.Adam()</span><span class="s1">,</span>
+                        <span class="s2">metrics=[</span><span class="s3">'accuracy'</span><span class="s2">])</span>
+<span class="s0">#%% 
+</span><span class="s2">epochs = </span><span class="s4">50</span>
+<span class="s2">history_baseline_categorical = baseline_categorical.fit(</span>
+    <span class="s2">train_generator</span><span class="s1">,</span>
+    <span class="s2">validation_data=val_generator</span><span class="s1">,</span>
+    <span class="s2">epochs=epochs</span>
+<span class="s2">)</span>
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+
+<span class="s1">def </span><span class="s2">plot_training_history(history):</span>
+    <span class="s5">&quot;&quot;&quot; 
+    Plot training and validation metrics based on the History object from a Keras model. 
+ 
+    Parameters: 
+    - history: History object returned from the fit method. 
+    &quot;&quot;&quot;</span>
+    <span class="s2">epochs_range = range(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(history.history[</span><span class="s3">'accuracy'</span><span class="s2">]) + </span><span class="s4">1</span><span class="s2">)  </span><span class="s0"># Assuming there's at least the 'accuracy' metric</span>
+    <span class="s2">metrics = [key </span><span class="s1">for </span><span class="s2">key </span><span class="s1">in </span><span class="s2">history.history.keys() </span><span class="s1">if not </span><span class="s2">key.startswith(</span><span class="s3">&quot;val_&quot;</span><span class="s2">)]  </span><span class="s0"># Retrieve all non-validation metrics</span>
+    <span class="s2">_</span><span class="s1">, </span><span class="s2">axes = plt.subplots(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(metrics)</span><span class="s1">, </span><span class="s2">figsize=(</span><span class="s4">20</span><span class="s1">, </span><span class="s4">4</span><span class="s2">))  </span><span class="s0"># Dynamically adjust the number of subplots based on the number of metrics</span>
+
+    <span class="s1">for </span><span class="s2">idx</span><span class="s1">, </span><span class="s2">metric </span><span class="s1">in </span><span class="s2">enumerate(metrics):</span>
+        <span class="s0"># Plot the training and validation curve for each metric in each subplot</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[metric]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Training </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[</span><span class="s3">f&quot;val_</span><span class="s1">{</span><span class="s2">metric</span><span class="s1">}</span><span class="s3">&quot;</span><span class="s2">]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].legend()</span>
+        <span class="s2">axes[idx].set_title(</span><span class="s3">f'Training and Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_xlabel(</span><span class="s3">'Epoch'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_ylabel(metric.capitalize())</span>
+    
+    <span class="s2">plt.tight_layout()</span>
+    <span class="s2">plt.show()</span>
+
+<span class="s0"># Assuming history_baseline_categorical is the training history object of your MLP model</span>
+<span class="s0"># Call the function to plot</span>
+<span class="s2">plot_training_history(history_baseline_categorical)</span>
+
+
+<span class="s0">#%% md 
+</span><span class="s2">## Modify images to make classify more difficult 
+</span><span class="s0">#%% 
+</span><span class="s2">train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(</span>
+    <span class="s2">rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s1">,</span>
+    <span class="s2">rotation_range=</span><span class="s4">30</span><span class="s1">,  </span><span class="s0"># Rotation range (degrees), adjustable range, e.g., 20-40</span>
+    <span class="s2">width_shift_range=</span><span class="s4">0.1</span><span class="s1">,  </span><span class="s0"># Horizontal shift range</span>
+    <span class="s2">height_shift_range=</span><span class="s4">0.1</span><span class="s1">,  </span><span class="s0"># Vertical shift range</span>
+    <span class="s2">shear_range=</span><span class="s4">0.1</span><span class="s1">,  </span><span class="s0"># Shearing range</span>
+    <span class="s2">zoom_range=</span><span class="s4">0.1</span><span class="s1">,  </span><span class="s0"># Zoom range</span>
+    <span class="s2">horizontal_flip=</span><span class="s1">True,  </span><span class="s0"># Horizontal flip</span>
+<span class="s2">)</span>
+<span class="s2">val_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s2">)</span>
+<span class="s2">test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s2">)</span>
+
+<span class="s2">train_generator = train_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=train_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'ImagePath'</span><span class="s1">,</span>
+    <span class="s2">y_col=</span><span class="s3">'Label'</span><span class="s1">,</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,</span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,</span>
+    <span class="s2">batch_size=batch_size</span><span class="s1">,</span>
+    <span class="s2">class_mode=</span><span class="s3">'categorical'</span><span class="s1">,</span>
+    <span class="s2">shuffle=</span><span class="s1">True</span>
+<span class="s2">)</span>
+
+<span class="s2">val_generator = val_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=validation_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'ImagePath'</span><span class="s1">,</span>
+    <span class="s2">y_col=</span><span class="s3">'Label'</span><span class="s1">,</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,</span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,</span>
+    <span class="s2">batch_size=batch_size</span><span class="s1">,</span>
+    <span class="s2">class_mode=</span><span class="s3">'categorical'</span><span class="s1">,</span>
+    <span class="s2">shuffle=</span><span class="s1">False</span>
+<span class="s2">)</span>
+
+<span class="s2">test_generator = test_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=test_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'ImagePath'</span><span class="s1">,</span>
+    <span class="s2">y_col=</span><span class="s3">'Label'</span><span class="s1">,</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,</span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,</span>
+    <span class="s2">batch_size=batch_size</span><span class="s1">,</span>
+    <span class="s2">class_mode=</span><span class="s3">'categorical'</span><span class="s1">,  </span>
+    <span class="s2">shuffle=</span><span class="s1">False</span>
+<span class="s2">)</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## SVM Model with modified dataset 
+</span><span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">numpy </span><span class="s1">as </span><span class="s2">np</span>
+<span class="s1">from </span><span class="s2">sklearn.svm </span><span class="s1">import </span><span class="s2">SVC</span>
+<span class="s1">from </span><span class="s2">sklearn.preprocessing </span><span class="s1">import </span><span class="s2">StandardScaler</span>
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">accuracy_score</span>
+
+<span class="s1">def </span><span class="s2">get_data_from_generator(generator):</span>
+    <span class="s2">batches = []</span>
+    <span class="s2">labels = []</span>
+    <span class="s0"># Iterate over the generator to collect data and labels</span>
+    <span class="s1">for </span><span class="s2">batch</span><span class="s1">, </span><span class="s2">label </span><span class="s1">in </span><span class="s2">generator:</span>
+        <span class="s2">batches.append(batch)</span>
+        <span class="s2">labels.append(label)</span>
+        <span class="s1">if </span><span class="s2">len(batches) &gt;= len(generator):</span>
+            <span class="s1">break  </span><span class="s0"># Ensure there is no infinite iteration</span>
+    <span class="s1">return </span><span class="s2">np.vstack(batches)</span><span class="s1">, </span><span class="s2">np.vstack(labels)</span>
+
+<span class="s2">X_train</span><span class="s1">, </span><span class="s2">y_train = get_data_from_generator(train_generator)</span>
+<span class="s2">X_val</span><span class="s1">, </span><span class="s2">y_val = get_data_from_generator(val_generator)</span>
+<span class="s2">X_test</span><span class="s1">, </span><span class="s2">y_test = get_data_from_generator(test_generator)</span>
+
+<span class="s0"># Reshape the data to fit the input requirements of StandardScaler</span>
+<span class="s2">X_train = X_train.reshape(X_train.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)</span>
+<span class="s2">X_val = X_val.reshape(X_val.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)</span>
+<span class="s2">X_test = X_test.reshape(X_test.shape[</span><span class="s4">0</span><span class="s2">]</span><span class="s1">, </span><span class="s2">-</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s0"># Assuming y_train and y_val are one-hot encoded, with shape (number of samples, number of classes)</span>
+<span class="s2">y_train = np.argmax(y_train</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+<span class="s2">y_val = np.argmax(y_val</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s0"># Initialize and apply standardization</span>
+<span class="s2">scaler = StandardScaler()</span>
+<span class="s2">X_train_scaled = scaler.fit_transform(X_train)</span>
+<span class="s2">X_val_scaled = scaler.transform(X_val)</span>
+
+<span class="s0"># Initialize SVM model</span>
+<span class="s2">svm_model = SVC(kernel=</span><span class="s3">'rbf'</span><span class="s1">, </span><span class="s2">C=</span><span class="s4">1.0</span><span class="s1">, </span><span class="s2">gamma=</span><span class="s3">'auto'</span><span class="s1">, </span><span class="s2">max_iter=</span><span class="s4">1000</span><span class="s2">)</span>
+
+<span class="s0"># Train the SVM model</span>
+<span class="s2">svm_model.fit(X_train_scaled</span><span class="s1">, </span><span class="s2">y_train)</span>
+
+<span class="s0"># Evaluate the SVM model on the validation set</span>
+<span class="s2">y_pred_val = svm_model.predict(X_val_scaled)</span>
+<span class="s2">print(</span><span class="s3">&quot;Validation Accuracy:&quot;</span><span class="s1">, </span><span class="s2">accuracy_score(y_val</span><span class="s1">, </span><span class="s2">y_pred_val))</span>
+
+<span class="s0">#%% 
+</span><span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">classification_report</span><span class="s1">, </span><span class="s2">confusion_matrix</span>
+<span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+<span class="s1">import </span><span class="s2">seaborn </span><span class="s1">as </span><span class="s2">sns</span>
+
+<span class="s2">report = classification_report(y_val</span><span class="s1">, </span><span class="s2">y_pred_val</span><span class="s1">, </span><span class="s2">target_names=label_names</span><span class="s1">, </span><span class="s2">zero_division=</span><span class="s4">1</span><span class="s2">)</span>
+<span class="s2">print(report)</span>
+
+<span class="s2">cm = confusion_matrix(y_val</span><span class="s1">, </span><span class="s2">y_pred_val)</span>
+<span class="s2">print(cm)</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## MLP Model with modified dataset 
+</span><span class="s0">#%% 
+</span><span class="s2">num_classes = </span><span class="s4">16</span>
+<span class="s2">input_shape = (</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span>
+<span class="s2">baseline_categorical = tf.keras.models.Sequential([</span>
+    <span class="s2">tf.keras.Input(shape=input_shape)</span><span class="s1">,</span>
+    <span class="s2">tf.keras.layers.Flatten()</span><span class="s1">,</span>
+    <span class="s2">tf.keras.layers.Dense(</span><span class="s4">512</span><span class="s1">, </span><span class="s2">activation=</span><span class="s3">'relu'</span><span class="s2">)</span><span class="s1">,</span>
+    <span class="s2">tf.keras.layers.Dense(num_classes</span><span class="s1">, </span><span class="s2">activation=</span><span class="s3">'softmax'</span><span class="s2">)</span>
+<span class="s2">])</span>
+<span class="s0">#%% 
+</span><span class="s2">baseline_categorical.compile(loss=</span><span class="s3">'binary_crossentropy'</span><span class="s1">,</span>
+                        <span class="s2">optimizer=tf.keras.optimizers.Adam()</span><span class="s1">,</span>
+                        <span class="s2">metrics=[</span><span class="s3">'accuracy'</span><span class="s2">])</span>
+<span class="s0">#%% 
+</span><span class="s2">epochs = </span><span class="s4">50</span>
+<span class="s2">history_baseline_categorical = baseline_categorical.fit(</span>
+    <span class="s2">train_generator</span><span class="s1">,</span>
+    <span class="s2">validation_data=val_generator</span><span class="s1">,</span>
+    <span class="s2">epochs=epochs</span>
+<span class="s2">)</span>
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+
+<span class="s1">def </span><span class="s2">plot_training_history(history):</span>
+    <span class="s5">&quot;&quot;&quot; 
+    根据Keras模型的History对象绘制训练和验证的指标。 
+ 
+    参数: 
+    - history: 从fit方法返回的History对象。 
+    &quot;&quot;&quot;</span>
+    <span class="s2">epochs_range = range(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(history.history[</span><span class="s3">'accuracy'</span><span class="s2">]) + </span><span class="s4">1</span><span class="s2">) </span>
+    <span class="s2">metrics = [key </span><span class="s1">for </span><span class="s2">key </span><span class="s1">in </span><span class="s2">history.history.keys() </span><span class="s1">if not </span><span class="s2">key.startswith(</span><span class="s3">&quot;val_&quot;</span><span class="s2">)]  </span>
+    <span class="s2">_</span><span class="s1">, </span><span class="s2">axes = plt.subplots(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(metrics)</span><span class="s1">, </span><span class="s2">figsize=(</span><span class="s4">20</span><span class="s1">, </span><span class="s4">4</span><span class="s2">))  </span>
+
+    <span class="s1">for </span><span class="s2">idx</span><span class="s1">, </span><span class="s2">metric </span><span class="s1">in </span><span class="s2">enumerate(metrics):</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[metric]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Training </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[</span><span class="s3">f&quot;val_</span><span class="s1">{</span><span class="s2">metric</span><span class="s1">}</span><span class="s3">&quot;</span><span class="s2">]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].legend()</span>
+        <span class="s2">axes[idx].set_title(</span><span class="s3">f'Training and Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_xlabel(</span><span class="s3">'Epoch'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_ylabel(metric.capitalize())</span>
+    
+    <span class="s2">plt.tight_layout()</span>
+    <span class="s2">plt.show()</span>
+
+<span class="s2">plot_training_history(history_baseline_categorical)</span>
+
+<span class="s0">#%% 
+</span><span class="s2">y_pred_val_prob = baseline_categorical.predict(val_generator)</span>
+<span class="s2">y_pred_val = np.argmax(y_pred_val_prob</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">classification_report</span><span class="s1">, </span><span class="s2">confusion_matrix</span>
+<span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+<span class="s1">import </span><span class="s2">seaborn </span><span class="s1">as </span><span class="s2">sns</span>
+
+<span class="s2">report = classification_report(val_generator.classes</span><span class="s1">, </span><span class="s2">y_pred_val</span><span class="s1">, </span><span class="s2">target_names=label_names)</span>
+<span class="s2">print(report)</span>
+
+<span class="s2">cm = confusion_matrix(val_generator.classes</span><span class="s1">, </span><span class="s2">y_pred_val)</span>
+<span class="s2">print(cm)</span>
+
+<span class="s0">#%% md 
+</span><span class="s2">## CNN Model for Multi Class 
+</span><span class="s0">#%% 
+</span><span class="s1">from </span><span class="s2">tensorflow.keras </span><span class="s1">import </span><span class="s2">models</span><span class="s1">, </span><span class="s2">layers</span>
+
+<span class="s2">num_classes = </span><span class="s4">16  </span><span class="s0"># Adjust the number of classes according to your task</span>
+
+<span class="s2">cnn_model = models.Sequential([</span>
+    <span class="s2">layers.Input(shape=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s1">, </span><span class="s4">1</span><span class="s2">))</span><span class="s1">,  </span><span class="s0"># Input for grayscale images, 1 channel</span>
+    <span class="s2">layers.Conv2D(</span><span class="s4">32</span><span class="s1">, </span><span class="s2">(</span><span class="s4">3</span><span class="s1">, </span><span class="s4">3</span><span class="s2">)</span><span class="s1">, </span><span class="s2">padding=</span><span class="s3">'same'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># First convolutional layer, 32 filters</span>
+    <span class="s2">layers.BatchNormalization()</span><span class="s1">,  </span><span class="s0"># Adding batch normalization</span>
+    <span class="s2">layers.Activation(</span><span class="s3">'relu'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Activation layer</span>
+    <span class="s2">layers.MaxPooling2D((</span><span class="s4">2</span><span class="s1">, </span><span class="s4">2</span><span class="s2">))</span><span class="s1">,  </span><span class="s0"># Max pooling</span>
+    <span class="s2">layers.Conv2D(</span><span class="s4">64</span><span class="s1">, </span><span class="s2">(</span><span class="s4">3</span><span class="s1">, </span><span class="s4">3</span><span class="s2">)</span><span class="s1">, </span><span class="s2">padding=</span><span class="s3">'same'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Second convolutional layer, 64 filters</span>
+    <span class="s2">layers.BatchNormalization()</span><span class="s1">,  </span><span class="s0"># Adding batch normalization</span>
+    <span class="s2">layers.Activation(</span><span class="s3">'relu'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Activation layer</span>
+    <span class="s2">layers.MaxPooling2D((</span><span class="s4">2</span><span class="s1">, </span><span class="s4">2</span><span class="s2">))</span><span class="s1">,  </span><span class="s0"># Max pooling</span>
+    <span class="s2">layers.Conv2D(</span><span class="s4">128</span><span class="s1">, </span><span class="s2">(</span><span class="s4">3</span><span class="s1">, </span><span class="s4">3</span><span class="s2">)</span><span class="s1">, </span><span class="s2">padding=</span><span class="s3">'same'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Third convolutional layer, 128 filters</span>
+    <span class="s2">layers.BatchNormalization()</span><span class="s1">,  </span><span class="s0"># Adding batch normalization</span>
+    <span class="s2">layers.Activation(</span><span class="s3">'relu'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Activation layer</span>
+    <span class="s2">layers.MaxPooling2D((</span><span class="s4">2</span><span class="s1">, </span><span class="s4">2</span><span class="s2">))</span><span class="s1">,  </span><span class="s0"># Max pooling</span>
+    <span class="s2">layers.Flatten()</span><span class="s1">,  </span><span class="s0"># Flatten the convolutional result</span>
+    <span class="s2">layers.Dense(</span><span class="s4">512</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Fully connected layer</span>
+    <span class="s2">layers.BatchNormalization()</span><span class="s1">,  </span><span class="s0"># Adding batch normalization</span>
+    <span class="s2">layers.Activation(</span><span class="s3">'relu'</span><span class="s2">)</span><span class="s1">,  </span><span class="s0"># Activation layer</span>
+    <span class="s2">layers.Dense(num_classes</span><span class="s1">, </span><span class="s2">activation=</span><span class="s3">'softmax'</span><span class="s2">)  </span><span class="s0"># Output layer, using softmax activation</span>
+<span class="s2">])</span>
+
+<span class="s1">from </span><span class="s2">tensorflow.keras.callbacks </span><span class="s1">import </span><span class="s2">Callback</span>
+<span class="s1">import </span><span class="s2">numpy </span><span class="s1">as </span><span class="s2">np</span>
+
+<span class="s1">class </span><span class="s2">PerClassAccuracy(Callback):</span>
+    <span class="s1">def </span><span class="s2">__init__(self</span><span class="s1">, </span><span class="s2">validation_generator</span><span class="s1">, </span><span class="s2">num_classes):</span>
+        <span class="s2">super().__init__()</span>
+        <span class="s2">self.validation_generator = validation_generator</span>
+        <span class="s2">self.num_classes = num_classes</span>
+        <span class="s2">self.history = {</span><span class="s3">'val_accuracy_per_class'</span><span class="s2">: []}</span>
+
+    <span class="s1">def </span><span class="s2">on_epoch_end(self</span><span class="s1">, </span><span class="s2">epoch</span><span class="s1">, </span><span class="s2">logs=</span><span class="s1">None</span><span class="s2">):</span>
+        <span class="s2">val_preds = self.model.predict(self.validation_generator)</span>
+        <span class="s2">val_classes = np.argmax(val_preds</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s2">true_classes = self.validation_generator.classes</span>
+        <span class="s2">correct_preds = np.zeros(self.num_classes)</span>
+        <span class="s2">total_preds = np.zeros(self.num_classes)</span>
+
+        <span class="s1">for </span><span class="s2">i </span><span class="s1">in </span><span class="s2">range(self.num_classes):</span>
+            <span class="s1">for </span><span class="s2">true</span><span class="s1">, </span><span class="s2">pred </span><span class="s1">in </span><span class="s2">zip(true_classes</span><span class="s1">, </span><span class="s2">val_classes):</span>
+                <span class="s1">if </span><span class="s2">true == i:</span>
+                    <span class="s2">total_preds[i] += </span><span class="s4">1</span>
+                    <span class="s1">if </span><span class="s2">true == pred:</span>
+                        <span class="s2">correct_preds[i] += </span><span class="s4">1</span>
+
+        <span class="s2">accuracy_per_class = correct_preds / total_preds</span>
+        <span class="s2">self.history[</span><span class="s3">'val_accuracy_per_class'</span><span class="s2">].append(accuracy_per_class)</span>
+
+<span class="s0"># Usage</span>
+<span class="s2">num_classes = </span><span class="s4">16</span>
+<span class="s2">validation_data = val_generator  </span><span class="s0"># Assume val_generator is already defined</span>
+<span class="s2">per_class_accuracy_callback = PerClassAccuracy(validation_data</span><span class="s1">, </span><span class="s2">num_classes)</span>
+
+<span class="s2">cnn_model.compile(</span>
+    <span class="s2">loss=</span><span class="s3">'categorical_crossentropy'</span><span class="s1">,  </span><span class="s0"># Using categorical crossentropy loss</span>
+    <span class="s2">optimizer=tf.keras.optimizers.Adam()</span><span class="s1">,  </span><span class="s0"># Adam optimizer</span>
+    <span class="s2">metrics=[</span><span class="s3">'accuracy'</span><span class="s2">]  </span><span class="s0"># Using accuracy as metric</span>
+<span class="s2">)</span>
+
+<span class="s0">#%% 
+</span><span class="s2">epochs = </span><span class="s4">50</span>
+<span class="s2">history_cnn = cnn_model.fit(</span>
+    <span class="s2">train_generator</span><span class="s1">,</span>
+    <span class="s2">validation_data=val_generator</span><span class="s1">,</span>
+    <span class="s2">epochs=epochs</span><span class="s1">,</span>
+    <span class="s2">callbacks=[per_class_accuracy_callback]</span><span class="s1">,</span>
+    <span class="s2">verbose=</span><span class="s4">1</span>
+<span class="s2">)</span>
+
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+
+<span class="s1">def </span><span class="s2">plot_training_history(history):</span>
+
+    <span class="s2">epochs_range = range(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(history.history[</span><span class="s3">'accuracy'</span><span class="s2">]) + </span><span class="s4">1</span><span class="s2">)  </span>
+    <span class="s2">metrics = [key </span><span class="s1">for </span><span class="s2">key </span><span class="s1">in </span><span class="s2">history.history.keys() </span><span class="s1">if not </span><span class="s2">key.startswith(</span><span class="s3">&quot;val_&quot;</span><span class="s2">)]  </span>
+    <span class="s2">_</span><span class="s1">, </span><span class="s2">axes = plt.subplots(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(metrics)</span><span class="s1">, </span><span class="s2">figsize=(</span><span class="s4">20</span><span class="s1">, </span><span class="s4">4</span><span class="s2">))  </span>
+
+    <span class="s1">for </span><span class="s2">idx</span><span class="s1">, </span><span class="s2">metric </span><span class="s1">in </span><span class="s2">enumerate(metrics):</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[metric]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Training </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[</span><span class="s3">f&quot;val_</span><span class="s1">{</span><span class="s2">metric</span><span class="s1">}</span><span class="s3">&quot;</span><span class="s2">]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].legend()</span>
+        <span class="s2">axes[idx].set_title(</span><span class="s3">f'Training and Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_xlabel(</span><span class="s3">'Epoch'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_ylabel(metric.capitalize())</span>
+    
+    <span class="s2">plt.tight_layout()</span>
+    <span class="s2">plt.show()</span>
+
+<span class="s2">plot_training_history(history_cnn)</span>
+
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">numpy </span><span class="s1">as </span><span class="s2">np</span>
+
+<span class="s1">if </span><span class="s2">y_pred_val_prob.ndim &gt; </span><span class="s4">1</span><span class="s2">:</span>
+    <span class="s2">y_pred_val = np.argmax(y_pred_val_prob</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)</span>
+<span class="s1">else</span><span class="s2">:</span>
+    <span class="s2">y_pred_val = y_pred_val_prob  </span>
+
+<span class="s2">y_val = val_generator.labels</span>
+
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">classification_report</span><span class="s1">, </span><span class="s2">confusion_matrix</span>
+<span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+<span class="s1">import </span><span class="s2">seaborn </span><span class="s1">as </span><span class="s2">sns</span>
+
+<span class="s2">report = classification_report(y_val</span><span class="s1">, </span><span class="s2">y_pred_val</span><span class="s1">, </span><span class="s2">target_names=label_names)</span>
+<span class="s2">print(report)</span>
+
+<span class="s1">def </span><span class="s2">plot_per_class_training_history(per_class_history</span><span class="s1">, </span><span class="s2">label_names):</span>
+    <span class="s2">num_classes = len(label_names)  </span><span class="s0"># 确定类别数量</span>
+    <span class="s2">epochs_range = range(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(per_class_history[</span><span class="s3">'val_accuracy_per_class'</span><span class="s2">]) + </span><span class="s4">1</span><span class="s2">)</span>
+    <span class="s2">plt.figure(figsize=(</span><span class="s4">20</span><span class="s1">, </span><span class="s4">40</span><span class="s2">))  </span><span class="s0"># 根据类别数量调整图形尺寸</span>
+
+    <span class="s1">for </span><span class="s2">i </span><span class="s1">in </span><span class="s2">range(num_classes):</span>
+        <span class="s2">plt.subplot(num_classes</span><span class="s1">, </span><span class="s4">1</span><span class="s1">, </span><span class="s2">i+</span><span class="s4">1</span><span class="s2">)</span>
+        <span class="s2">class_accuracy = [acc[i] </span><span class="s1">for </span><span class="s2">acc </span><span class="s1">in </span><span class="s2">per_class_history[</span><span class="s3">'val_accuracy_per_class'</span><span class="s2">]]</span>
+        <span class="s2">plt.plot(epochs_range</span><span class="s1">, </span><span class="s2">class_accuracy</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Validation Accuracy for </span><span class="s1">{</span><span class="s2">label_names[i]</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">plt.legend()</span>
+        <span class="s2">plt.title(label_names[i])  </span><span class="s0"># 使用类别名称作为标题</span>
+        <span class="s2">plt.xlabel(</span><span class="s3">'Epoch'</span><span class="s2">)</span>
+        <span class="s2">plt.ylabel(</span><span class="s3">'Accuracy'</span><span class="s2">)</span>
+
+    <span class="s2">plt.tight_layout()</span>
+    <span class="s2">plt.show()</span>
+
+<span class="s2">plot_per_class_training_history(per_class_accuracy_callback.history</span><span class="s1">, </span><span class="s2">label_names)</span>
+
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">os</span>
+
+<span class="s0"># Root directory of the test images</span>
+<span class="s2">test_dataset_dir = </span><span class="s3">'trafficsign_test'</span>
+
+<span class="s0"># 定义不需要的标签列表</span>
+<span class="s2">discard_labels = {</span><span class="s3">'9'</span><span class="s1">, </span><span class="s3">'10'</span><span class="s1">, </span><span class="s3">'12'</span><span class="s1">, </span><span class="s3">'15'</span><span class="s1">, </span><span class="s3">'16'</span><span class="s1">, </span><span class="s3">'19'</span><span class="s1">, </span><span class="s3">'20'</span><span class="s1">, </span><span class="s3">'21'</span><span class="s1">, </span><span class="s3">'23'</span><span class="s1">, </span><span class="s3">'26'</span><span class="s1">, </span><span class="s3">'30'</span><span class="s1">, </span><span class="s3">'31'</span><span class="s1">, </span><span class="s3">'32'</span><span class="s1">, </span><span class="s3">'41'</span><span class="s1">, </span><span class="s3">'42'</span><span class="s2">}</span>
+
+<span class="s1">def </span><span class="s2">load_test_images(root_dir</span><span class="s1">, </span><span class="s2">discard_labels):</span>
+    <span class="s5">&quot;&quot;&quot; Load only image paths from the specified directory for testing, skipping unwanted labels. &quot;&quot;&quot;</span>
+    <span class="s2">test_image_paths = []</span>
+    <span class="s1">for </span><span class="s2">sub_dir </span><span class="s1">in </span><span class="s2">os.listdir(root_dir):</span>
+        <span class="s0"># 检查子目录名称是否在不需要的标签列表中</span>
+        <span class="s1">if </span><span class="s2">sub_dir </span><span class="s1">in </span><span class="s2">discard_labels:</span>
+            <span class="s1">continue  </span><span class="s0"># 跳过这个目录</span>
+        <span class="s2">sub_dir_path = os.path.join(root_dir</span><span class="s1">, </span><span class="s2">sub_dir)</span>
+        <span class="s1">if </span><span class="s2">os.path.isdir(sub_dir_path):</span>
+            <span class="s1">for </span><span class="s2">image_filename </span><span class="s1">in </span><span class="s2">os.listdir(sub_dir_path):</span>
+                <span class="s1">if </span><span class="s2">image_filename.lower().endswith((</span><span class="s3">'.png'</span><span class="s1">, </span><span class="s3">'.jpg'</span><span class="s1">, </span><span class="s3">'.jpeg'</span><span class="s2">)):</span>
+                    <span class="s2">image_path = os.path.join(sub_dir_path</span><span class="s1">, </span><span class="s2">image_filename)</span>
+                    <span class="s2">test_image_paths.append(image_path)</span>
+    <span class="s1">return </span><span class="s2">test_image_paths</span>
+
+<span class="s0"># 调用函数</span>
+<span class="s2">test_image_paths = load_test_images(test_dataset_dir</span><span class="s1">, </span><span class="s2">discard_labels)</span>
+
+<span class="s0"># 打印加载的图像数量</span>
+<span class="s2">print(</span><span class="s3">f&quot;Loaded </span><span class="s1">{</span><span class="s2">len(test_image_paths)</span><span class="s1">} </span><span class="s3">images for testing.&quot;</span><span class="s2">)</span>
+
+<span class="s0">#%% 
+</span><span class="s1">from </span><span class="s2">tensorflow.keras.preprocessing.image </span><span class="s1">import </span><span class="s2">ImageDataGenerator</span>
+
+<span class="s0"># 假设 test_image_paths 包含了所有测试图像的路径</span>
+<span class="s2">test_df = pd.DataFrame({</span>
+    <span class="s3">'filename'</span><span class="s2">: test_image_paths</span>
+<span class="s2">})</span>
+
+<span class="s2">test_datagen = ImageDataGenerator(rescale=</span><span class="s4">1.</span><span class="s2">/</span><span class="s4">255</span><span class="s2">)</span>
+
+<span class="s2">test_generator = test_datagen.flow_from_dataframe(</span>
+    <span class="s2">dataframe=test_df</span><span class="s1">,</span>
+    <span class="s2">x_col=</span><span class="s3">'filename'</span><span class="s1">,</span>
+    <span class="s2">class_mode=</span><span class="s1">None,  </span>
+    <span class="s2">target_size=(</span><span class="s4">28</span><span class="s1">, </span><span class="s4">28</span><span class="s2">)</span><span class="s1">,</span>
+    <span class="s2">color_mode=</span><span class="s3">'grayscale'</span><span class="s1">,</span>
+    <span class="s2">batch_size=</span><span class="s4">32</span><span class="s1">,</span>
+    <span class="s2">shuffle=</span><span class="s1">False</span>
+<span class="s2">)</span>
+
+<span class="s0">#%% 
+</span><span class="s2">predictions = cnn_model.predict(test_generator</span><span class="s1">, </span><span class="s2">verbose=</span><span class="s4">1</span><span class="s2">)</span>
+
+<span class="s1">def </span><span class="s2">plot_training_history(history):</span>
+    <span class="s2">epochs_range = range(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(history.history[</span><span class="s3">'accuracy'</span><span class="s2">]) + </span><span class="s4">1</span><span class="s2">)</span>
+    <span class="s2">metrics = [key </span><span class="s1">for </span><span class="s2">key </span><span class="s1">in </span><span class="s2">history.history.keys() </span><span class="s1">if not </span><span class="s2">key.startswith(</span><span class="s3">&quot;val_&quot;</span><span class="s2">)]</span>
+    <span class="s2">_</span><span class="s1">, </span><span class="s2">axes = plt.subplots(</span><span class="s4">1</span><span class="s1">, </span><span class="s2">len(metrics)</span><span class="s1">, </span><span class="s2">figsize=(</span><span class="s4">20</span><span class="s1">, </span><span class="s4">4</span><span class="s2">))</span>
+
+    <span class="s1">for </span><span class="s2">idx</span><span class="s1">, </span><span class="s2">metric </span><span class="s1">in </span><span class="s2">enumerate(metrics):</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[metric]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Training </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].plot(epochs_range</span><span class="s1">, </span><span class="s2">history.history[</span><span class="s3">f&quot;val_</span><span class="s1">{</span><span class="s2">metric</span><span class="s1">}</span><span class="s3">&quot;</span><span class="s2">]</span><span class="s1">, </span><span class="s2">label=</span><span class="s3">f'Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].legend()</span>
+        <span class="s2">axes[idx].set_title(</span><span class="s3">f'Training and Validation </span><span class="s1">{</span><span class="s2">metric.capitalize()</span><span class="s1">}</span><span class="s3">'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_xlabel(</span><span class="s3">'Epoch'</span><span class="s2">)</span>
+        <span class="s2">axes[idx].set_ylabel(metric.capitalize())</span>
+
+    <span class="s2">plt.tight_layout()</span>
+    <span class="s2">plt.show()</span>
+
+<span class="s2">plot_training_history(history_cnn)</span>
+
+
+<span class="s0">#%% 
+</span><span class="s1">import </span><span class="s2">matplotlib.pyplot </span><span class="s1">as </span><span class="s2">plt</span>
+<span class="s1">import </span><span class="s2">seaborn </span><span class="s1">as </span><span class="s2">sns</span>
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">confusion_matrix</span>
+
+<span class="s0"># 获取验证集上的预测概率</span>
+<span class="s2">y_pred_val_prob = cnn_model.predict(val_generator)  </span>
+<span class="s2">y_pred_val = np.argmax(y_pred_val_prob</span><span class="s1">, </span><span class="s2">axis=</span><span class="s4">1</span><span class="s2">)  </span>
+
+<span class="s0"># 获取分类报告</span>
+<span class="s1">from </span><span class="s2">sklearn.metrics </span><span class="s1">import </span><span class="s2">classification_report</span><span class="s1">, </span><span class="s2">confusion_matrix</span>
+<span class="s2">report = classification_report(val_generator.classes</span><span class="s1">, </span><span class="s2">y_pred_val</span><span class="s1">, </span><span class="s2">target_names=label_names)</span>
+<span class="s2">print(report)</span>
+
+<span class="s0"># 绘制混淆矩阵</span>
+
+<span class="s2">cm = confusion_matrix(val_generator.classes</span><span class="s1">, </span><span class="s2">y_pred_val)</span>
+
+<span class="s2">print(cm)</span>
+</pre>
+</body>
+</html>
