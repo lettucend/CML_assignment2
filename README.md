@@ -1,4 +1,4 @@
-# CML_assignment2
+# Computational Machine Learning
 
 Participated by 
 
